@@ -1,65 +1,83 @@
-require('dotenv').config();
-const { Client, GatewayIntentBits } = require('discord.js');
-const axios = require('axios');
+require('dotenv').config(); // ✅ Load .env variables first
 
-// Fetch the environment variables for security (don't hardcode your keys in production)
+const { Client, GatewayIntentBits } = require('discord.js'); // ✅ Import Discord.js
+const axios = require('axios'); // ✅ For fetching news
+
+// ✅ Your environment variables
 const token = process.env.DISCORD_TOKEN;
 const newsApiKey = process.env.NEWSDATA_API_KEY;
 
-// Replace this with the target channel ID
-const TARGET_CHANNEL_ID = '1366821107797069924'; // <-- Replace with your channel ID
+// ✅ Replace with your real channel ID
+const TARGET_CHANNEL_ID = '1366821107797069924';
 
-// Create a new Discord client
+// ✅ Create Discord client with required intents
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
 });
 
-// Fetch cryptocurrency news
+// ✅ When the bot is ready
+client.once('ready', () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
+});
+
+// ✅ Fetch news from NewsData.io
 async function fetchCryptoNews() {
   try {
-    const response = await axios.get('https://newsdata.io/api/1/crypto', {
+    const response = await axios.get('https://newsdata.io/api/1/news', {
       params: {
         apikey: newsApiKey,
-        q: 'bitcoin', // You can change this query to get news about other cryptocurrencies
+        q: 'crypto OR bitcoin OR ethereum',
         language: 'en',
+        category: 'business',
       },
     });
-    return response.data.results;
+
+    return response.data.results || [];
   } catch (error) {
-    console.error('Error fetching news:', error);
+    console.error('❌ Error fetching news:', error);
     return null;
   }
 }
 
-// Command handler for the !cryptonews command
+// ✅ Respond to command
 client.on('messageCreate', async (message) => {
+  if (message.author.bot) return;
+
   if (message.content.toLowerCase() === '!cryptonews') {
     const news = await fetchCryptoNews();
 
     if (news && news.length > 0) {
       const newsEmbed = {
         color: 0x0099ff,
-        title: 'Latest Cryptocurrency News',
-        description: 'Here are the latest headlines in the crypto world!',
+        title: '📰 Latest Crypto News',
+        description: 'Here are the latest headlines:',
         fields: news.slice(0, 5).map((item) => ({
           name: item.title,
-          value: item.description || 'No description available',
+          value: item.link,
         })),
         timestamp: new Date(),
       };
 
-      // Send the message to the specific channel by ID
-      const channel = await client.channels.fetch(TARGET_CHANNEL_ID);
-      if (channel) {
-        channel.send({ embeds: [newsEmbed] });
-      } else {
-        console.error('Channel not found!');
+      try {
+        const channel = await client.channels.fetch(TARGET_CHANNEL_ID);
+        if (channel) {
+          channel.send({ embeds: [newsEmbed] });
+        } else {
+          message.channel.send('❌ Could not find the target channel.');
+        }
+      } catch (err) {
+        console.error('❌ Channel fetch/send failed:', err);
+        message.channel.send('❌ Failed to send news.');
       }
     } else {
-      console.log('No news available!');
+      message.channel.send('😕 No news found.');
     }
   }
 });
 
-// Log in to Discord with your app's token
+// ✅ Log in
 client.login(token);
