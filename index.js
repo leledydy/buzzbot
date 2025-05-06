@@ -4,7 +4,7 @@ const axios = require('axios');
 
 const token = process.env.DISCORD_TOKEN;
 const newsApiKey = process.env.NEWSDATA_API_KEY;
-const TARGET_CHANNEL_ID = 'YOUR_CHANNEL_ID_HERE'; // Replace with your real channel ID
+const TARGET_CHANNEL_ID = '1366821107797069924'; // Replace with your real channel ID
 
 const client = new Client({
   intents: [
