@@ -14,7 +14,7 @@ const client = new Client({
   ],
 });
 
-let lastSentLink = ''; // Only send new unique article
+let lastSentLink = '';
 
 async function fetchAndSendNews() {
   try {
@@ -35,17 +35,16 @@ async function fetchAndSendNews() {
 
     const channel = await client.channels.fetch(TARGET_CHANNEL_ID);
 
+    const image = latest.image_url || latest.image || null;
+
     const embed = {
       color: 0x00ccff,
       title: latest.title,
       url: latest.link,
       description: latest.description?.slice(0, 200) || 'No description.',
       timestamp: new Date(latest.pubDate || Date.now()),
+      thumbnail: image ? { url: image } : undefined,
     };
-
-    if (latest.image_url) {
-      embed.thumbnail = { url: latest.image_url };
-    }
 
     await channel.send({ embeds: [embed] });
     lastSentLink = latest.link;
@@ -64,8 +63,8 @@ client.on('messageCreate', async (message) => {
 
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
-  fetchAndSendNews(); // Initial post
-  setInterval(fetchAndSendNews, 3600000); // Every hour
+  fetchAndSendNews();
+  setInterval(fetchAndSendNews, 3600000);
 });
 
 client.login(token);
