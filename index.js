@@ -1,16 +1,11 @@
-require('dotenv').config(); // ✅ Load .env variables first
+require('dotenv').config();
+const { Client, GatewayIntentBits } = require('discord.js');
+const axios = require('axios');
 
-const { Client, GatewayIntentBits } = require('discord.js'); // ✅ Import Discord.js
-const axios = require('axios'); // ✅ For fetching news
-
-// ✅ Your environment variables
 const token = process.env.DISCORD_TOKEN;
 const newsApiKey = process.env.NEWSDATA_API_KEY;
+const TARGET_CHANNEL_ID = 'YOUR_CHANNEL_ID_HERE'; // Replace this
 
-// ✅ Replace with your real channel ID
-const TARGET_CHANNEL_ID = '1366821107797069924';
-
-// ✅ Create Discord client with required intents
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -19,15 +14,11 @@ const client = new Client({
   ],
 });
 
-// ✅ When the bot is ready
-client.once('ready', () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
-});
+const sentNews = new Set();
 
-// ✅ Fetch news from NewsData.io
-async function fetchCryptoNews() {
+async function fetchAndSendNews() {
   try {
-    const response = await axios.get('https://newsdata.io/api/1/news', {
+    const res = await axios.get('https://newsdata.io/api/1/news', {
       params: {
         apikey: newsApiKey,
         q: 'crypto OR bitcoin OR ethereum',
@@ -36,48 +27,49 @@ async function fetchCryptoNews() {
       },
     });
 
-    return response.data.results || [];
-  } catch (error) {
-    console.error('❌ Error fetching news:', error);
-    return null;
+    const newsList = res.data.results || [];
+    const newArticles = newsList.filter((article) => !sentNews.has(article.link));
+
+    if (newArticles.length === 0) return;
+
+    const channel = await client.channels.fetch(TARGET_CHANNEL_ID);
+
+    for (const article of newArticles.slice(0, 5)) {
+      const embed = {
+        color: 0x00ccff,
+        title: article.title,
+        url: article.link,
+        description: article.description?.slice(0, 200) || 'No description.',
+        timestamp: new Date(article.pubDate || Date.now()),
+      };
+
+      await channel.send({ embeds: [embed] });
+      sentNews.add(article.link);
+    }
+
+    // Trim memory
+    if (sentNews.size > 1000) {
+      const tempSet = new Set([...sentNews].slice(-500));
+      sentNews.clear();
+      for (const url of tempSet) sentNews.add(url);
+    }
+
+  } catch (err) {
+    console.error('❌ Error sending news:', err.message);
   }
 }
 
-// ✅ Respond to command
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
-
   if (message.content.toLowerCase() === '!cryptonews') {
-    const news = await fetchCryptoNews();
-
-    if (news && news.length > 0) {
-      const newsEmbed = {
-        color: 0x0099ff,
-        title: '📰 Latest Crypto News',
-        description: 'Here are the latest headlines:',
-        fields: news.slice(0, 5).map((item) => ({
-          name: item.title,
-          value: item.link,
-        })),
-        timestamp: new Date(),
-      };
-
-      try {
-        const channel = await client.channels.fetch(TARGET_CHANNEL_ID);
-        if (channel) {
-          channel.send({ embeds: [newsEmbed] });
-        } else {
-          message.channel.send('❌ Could not find the target channel.');
-        }
-      } catch (err) {
-        console.error('❌ Channel fetch/send failed:', err);
-        message.channel.send('❌ Failed to send news.');
-      }
-    } else {
-      message.channel.send('😕 No news found.');
-    }
+    fetchAndSendNews();
   }
 });
 
-// ✅ Log in
+client.once('ready', () => {
+  console.log(`✅ Logged in as ${client.user.tag}`);
+  fetchAndSendNews(); // Send once at startup
+  setInterval(fetchAndSendNews, 3600000); // Then every hour
+});
+
 client.login(token);
