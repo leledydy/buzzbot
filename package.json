@@ -1,0 +1,23 @@
+{
+  "name": "crypto-news-bot",
+  "version": "1.0.0",
+  "description": "A Discord bot that fetches and posts cryptocurrency news from NewsData.io.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "crypto",
+    "news",
+    "newsdata"
+  ],
+  "author": "YourName",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.7",
+    "discord.js": "^14.14.1",
+    "dotenv": "^16.3.1"
+  }
+}
