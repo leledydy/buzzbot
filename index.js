@@ -64,7 +64,7 @@ client.on('messageCreate', async (message) => {
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
   fetchAndSendNews();
-  setInterval(fetchAndSendNews, 3600000);
+  setInterval(fetchAndSendNews, 21600000);
 });
 
 client.login(token);
