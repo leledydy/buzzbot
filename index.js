@@ -7,7 +7,6 @@ const client = new Client({
 });
 
 const CHANNEL_ID = process.env.CHANNEL_ID;
-
 let sentLinks = new Set();
 
 async function fetchNewsData() {
@@ -15,9 +14,9 @@ async function fetchNewsData() {
     const res = await axios.get('https://newsdata.io/api/1/news', {
       params: {
         apikey: process.env.NEWSDATA_API_KEY,
-        q: 'crypto OR bitcoin OR ethereum',
+        q: 'cryptocurrency OR bitcoin OR ethereum OR altcoin OR defi',
         language: 'en',
-        category: 'business',
+        category: 'technology',
       },
     });
 
@@ -27,7 +26,7 @@ async function fetchNewsData() {
       url: article.link,
       description: article.description,
       image: article.image_url || null,
-      source: 'NewsData.io'
+      source: 'NewsData.io',
     } : null;
   } catch (err) {
     console.error('NewsData error:', err.message);
@@ -39,7 +38,7 @@ async function fetchGNews() {
   try {
     const res = await axios.get('https://gnews.io/api/v4/search', {
       params: {
-        q: 'crypto',
+        q: 'cryptocurrency OR bitcoin OR ethereum OR blockchain',
         token: process.env.GNEWS_API_KEY,
         lang: 'en',
         max: 1,
@@ -52,7 +51,7 @@ async function fetchGNews() {
       url: article.url,
       description: article.description,
       image: article.image,
-      source: 'GNews'
+      source: 'GNews',
     } : null;
   } catch (err) {
     console.error('GNews error:', err.message);
@@ -62,10 +61,10 @@ async function fetchGNews() {
 
 async function fetchCurrents() {
   try {
-    const res = await axios.get('https://api.currentsapi.services/v1/latest-news', {
+    const res = await axios.get('https://api.currentsapi.services/v1/search', {
       params: {
         apiKey: process.env.CURRENTS_API_KEY,
-        category: 'cryptocurrency',
+        keywords: 'cryptocurrency, bitcoin, ethereum, blockchain',
         language: 'en',
       },
     });
@@ -76,7 +75,7 @@ async function fetchCurrents() {
       url: article.url,
       description: article.description,
       image: article.image || null,
-      source: 'CurrentsAPI'
+      source: 'CurrentsAPI',
     } : null;
   } catch (err) {
     console.error('Currents error:', err.message);
@@ -87,29 +86,40 @@ async function fetchCurrents() {
 async function fetchAndSendNews() {
   const channel = await client.channels.fetch(CHANNEL_ID);
   const sources = [fetchNewsData, fetchGNews, fetchCurrents];
+  let articlesSent = 0;
+  const maxArticles = 3;
 
   for (const fetchFn of sources) {
+    if (articlesSent >= maxArticles) break;
+
     const article = await fetchFn();
     if (article && !sentLinks.has(article.url)) {
       const embed = {
         color: 0x00ccff,
         title: article.title,
         url: article.url,
-        description: article.description?.slice(0, 200) || 'No description.',
+        description: `[Click to read full article](${article.url})\n\n${article.description?.slice(0, 200) || 'No description.'}`,
+        image: article.image ? { url: article.image } : undefined,
         footer: { text: `Source: ${article.source}` },
         timestamp: new Date(),
-        thumbnail: article.image ? { url: article.image } : undefined,
       };
 
       await channel.send({ embeds: [embed] });
       sentLinks.add(article.url);
+      articlesSent++;
     }
+  }
+
+  if (articlesSent === 0) {
+    console.log("ℹ️ No new crypto news to post.");
+  } else {
+    console.log(`📤 Posted ${articlesSent} crypto news article(s).`);
   }
 }
 
 client.once('ready', () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
-  fetchAndSendNews(); // Run immediately
+  fetchAndSendNews(); // Run once on startup
   setInterval(fetchAndSendNews, 6 * 60 * 60 * 1000); // Every 6 hours
 });
 
